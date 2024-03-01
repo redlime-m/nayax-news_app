@@ -1,4 +1,8 @@
+import 'package:news_app/constants/constants.dart';
+import 'package:news_app/data/repository/local/news_repository.dart';
+import 'package:news_app/data/repository/remote/news_db_repository.dart';
 import 'package:news_app/models/article.dart';
+import 'package:news_app/service_locator/service_locator.dart';
 import 'package:rxdart/rxdart.dart';
 
 class NewsBloc {
@@ -13,61 +17,58 @@ class NewsBloc {
 
   NewsBloc._() : super();
 
-  final Requests requests = Requests();
-  final ValueNotifier<MoviesFilter> filterNotifier =
-      ValueNotifier<MoviesFilter>(MoviesFilter.values.first);
-  int page = 1;
-  int totalPages = 10;
+  final NewsRepository _remoteRepository = sl();
+  final NewsDBRepository _dbRepository = sl();
   bool isLoading = false;
+  bool isRTL = false;
 
   final _articlesSubject = BehaviorSubject<List<Article>?>.seeded(null);
+  final _clearListSubject = BehaviorSubject<bool>.seeded(false);
 
   Stream<List<Article>?> get articlesStream => _articlesSubject.stream;
+  Stream<bool> get clearListStream => _clearListSubject.stream;
 
   void init() async {
-    await fetchArticles();
+    await getArticles();
   }
 
-  Future<void> fetchArticles({bool pagination = false}) async {
-    if (page == totalPages || isLoading) {
+  Future<void> getArticles() async {
+    if (isLoading) {
       return;
     }
-    try {
-      isLoading = true;
-      if (pagination) {
-        page++;
-      }
-      final response = await requests.fetchArticles(filterNotifier.value, page);
-      if (response == null) {
-        throw Exception('error');
-      }
-      final int? total = response['total_pages'];
-      if (total != null) {
-        totalPages = total;
-      }
-      final List<Article> articles = (response['results'] as List? ?? [])
-          .map((e) => Article.fromJson(e))
-          .toList();
-      if (pagination) {
-        _articlesSubject.sink
-            .add([..._articlesSubject.value ?? [], ...articles]);
-      } else {
-        _articlesSubject.sink.add(articles);
-      }
-      Prefs.setArticles(articles);
-      isLoading = false;
-    } catch (e) {
-      isLoading = false;
-      _articlesSubject.sink.add(Prefs.storedArticles);
+    isLoading = true;
+    _articlesSubject.sink.add(null);
+    _clearListSubject.sink.add(false);
+    isRTL = false;
+    List<Article> articles = await _remoteRepository.getArticles(firstQueryKey);
+    articles.addAll(await _remoteRepository.getArticles(secondQueryKey));
+    if (articles.isEmpty) {
+      _articlesSubject.sink.add(await _dbRepository.getTopArticleDB());
+    } else {
+      _articlesSubject.sink.add(articles);
+      _dbRepository.storeInTopDb(articles);
     }
+    isLoading = false;
   }
 
-  void onFilterChange(MoviesFilter filter) {
-    page = 1;
-    totalPages = 10;
-    filterNotifier.value = filter;
+  Future<void> getRandomArticles() async {
+    if (isLoading) {
+      return;
+    }
+    isLoading = true;
     _articlesSubject.sink.add(null);
-    fetchArticles();
+    _clearListSubject.sink.add(false);
+    isRTL = true;
+    List<Article> articles = await _remoteRepository.getRandomArticles();
+
+    if (articles.isEmpty) {
+      _articlesSubject.sink.add(await _dbRepository.getRandomArticleDB());
+    } else {
+      _articlesSubject.sink.add(articles);
+      _dbRepository.storeInRandomDb(articles);
+    }
+
+    isLoading = false;
   }
 
   dispose() {
@@ -76,24 +77,8 @@ class NewsBloc {
 
   void clear() {
     _articlesSubject.sink.add([]);
-    page = 1;
-    totalPages = 10;
+    _clearListSubject.sink.add(true);
+    isRTL = false;
     isLoading = false;
   }
-
-  // Future<String?> getMovieTrailer(Movie? movie) async {
-  //   if (movie == null || movie.id == null) {
-  //     return null;
-  //   }
-  //   try {
-  //     final res = await requests.fetchMovieTrailer(movie.id!);
-  //     if (res != null && res['results'] != null) {
-  //       final trailer = (res['results'] as List).firstWhereOrNull((e) => e['type'] == 'Trailer');
-  //       return trailer['key'];
-  //     }
-  //     return null;
-  //   } catch (e) {
-  //     return null;
-  //   }
-  // }
 }

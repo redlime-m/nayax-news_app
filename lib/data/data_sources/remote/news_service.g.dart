@@ -35,7 +35,7 @@ class _NewsService implements NewsService {
     queryParameters.removeWhere((k, v) => v == null);
     final _headers = <String, dynamic>{};
     final Map<String, dynamic>? _data = null;
-    final _result = await _dio.fetch<List<dynamic>>(
+    final _result = await _dio.fetch<Map<String, dynamic>>(
         _setStreamType<HttpResponse<List<Article>>>(Options(
       method: 'GET',
       headers: _headers,
@@ -52,8 +52,9 @@ class _NewsService implements NewsService {
               _dio.options.baseUrl,
               baseUrl,
             ))));
-    var value = _result.data!
-        .map((dynamic i) => Article.fromJson(i as Map<String, dynamic>))
+    List<Article> value = _result.data!['articles']
+        .map<Article>(
+            (dynamic i) => Article.fromJson(i as Map<String, dynamic>))
         .toList();
     final httpResponse = HttpResponse(value, _result);
     return httpResponse;
@@ -72,7 +73,7 @@ class _NewsService implements NewsService {
     queryParameters.removeWhere((k, v) => v == null);
     final _headers = <String, dynamic>{};
     final Map<String, dynamic>? _data = null;
-    final _result = await _dio.fetch<List<dynamic>>(
+    final _result = await _dio.fetch<Map<String, dynamic>>(
         _setStreamType<HttpResponse<List<Article>>>(Options(
       method: 'GET',
       headers: _headers,
@@ -89,8 +90,9 @@ class _NewsService implements NewsService {
               _dio.options.baseUrl,
               baseUrl,
             ))));
-    var value = _result.data!
-        .map((dynamic i) => Article.fromJson(i as Map<String, dynamic>))
+    List<Article> value = _result.data!['articles']
+        .map<Article>(
+            (dynamic i) => Article.fromJson(i as Map<String, dynamic>))
         .toList();
     final httpResponse = HttpResponse(value, _result);
     return httpResponse;

@@ -32,7 +32,6 @@ class NewsRepository {
         return [];
       }
     } on DioException catch (e) {
-      print(e.message);
       return [];
     }
   }
@@ -41,14 +40,13 @@ class NewsRepository {
     try {
       final httpResponse =
           await _newsService.getArticles(apiKey: apiKey, keyWord: keyWord);
-
       if (httpResponse.response.statusCode == HttpStatus.ok) {
         return httpResponse.data;
       } else {
         return [];
       }
     } on DioException catch (e) {
-      print(e.message);
+      print(e.error);
       return [];
     }
   }
